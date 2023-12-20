@@ -1,4 +1,4 @@
-# Masked Autoencoder meets GAN
+# Masked Autoencoder meets GAN for ECG
 
 To Pretrain run :
 

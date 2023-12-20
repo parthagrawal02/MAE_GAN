@@ -73,15 +73,6 @@ class PatchEmbed(nn.Module):
           nn.Conv1d(64, embed_dim, kernel_size=50, stride=50, padding = 50,dilation= 2, bias=bias),
         )
         self.layer_norm = nn.LayerNorm(embed_dim)
-
-#        self.proj1 = nn.Conv1d(1, 32, kernel_size=15, stride=1,padding= 'same', bias=bias)
-#        self.norm32 = nn.BatchNorm1d(32)
-#        self.proj2 = nn.Conv1d(32, 64, kernel_size=7, stride=1,padding= 'same', bias=bias)
-#        self.norm64 = nn.BatchNorm1d(64)
-#        self.proj = nn.Conv1d(64, embed_dim, kernel_size=50, stride=50, bias=bias)
-#        self.relu = nn.ReLU()
-#        self.layer_norm = nn.LayerNorm(embed_dim)
-
     
     def forward(self, x):
         B, C, H, W = x.shape
@@ -117,7 +108,6 @@ class PatchEmbed(nn.Module):
 
 
 # Need to read about this.
-
 class PatchEmbedWithSize(PatchEmbed):
     """ 2D Image to Patch Embedding
     """

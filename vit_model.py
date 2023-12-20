@@ -25,7 +25,7 @@ from utils.pos_embed import get_2d_sincos_pos_embed
 # Other functions remains the same
 
 
-class VisionTransformer1(nn.Module):
+class VisionTransformer(nn.Module):
     """ Masked Autoencoder with VisionTransformer backbone
     """
     def __init__(self, img_size=(12, 1000), patch_size=(1, 50), in_chans=1,
@@ -45,15 +45,6 @@ class VisionTransformer1(nn.Module):
         
         self.global_pool = global_pool
         self.norm = norm_layer(embed_dim) if not use_fc_norm else nn.Identity()
-        # if global_pool == 'map':
-        #     self.attn_pool = AttentionPoolLatent(
-        #         self.embed_dim,
-        #         num_heads=num_heads,
-        #         mlp_ratio=mlp_ratio,
-        #         norm_layer=norm_layer,
-        #     )
-        # else:
-        #     self.attn_pool = None
         self.fc_norm = norm_layer(embed_dim) if use_fc_norm else nn.Identity()
         self.head_drop = nn.Dropout(drop_rate)
         self.head = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
@@ -63,46 +54,15 @@ class VisionTransformer1(nn.Module):
     def no_weight_decay(self):
         return {'pos_embed', 'cls_token', 'dist_token'}
 
-    def patchify(self, imgs):
-        """
-        imgs: (N, 1, H, W) - 12 channel ECG - H = No. of channels, W = Length of ECG signal (1000 in this case)
-        x: (N, L, patch_size_height*patch_size_width*1)
-        """
-        ph = self.patch_embed.patch_size[0]
-        pw = self.patch_embed.patch_size[1]
-
-        h = imgs.shape[2] // ph
-        w = imgs.shape[3] // pw
-        x = imgs.reshape(shape=(imgs.shape[0], 1, h, ph, w, pw))
-        x = torch.einsum('nchpwq->nhwpqc', x)
-        x = x.reshape(shape=(imgs.shape[0], h * w, ph*pw * 1))
-        return x
-
-    def unpatchify(self, x):
-        """ 
-        x: (N, L, patch_size_height*patch_size_width*1)
-        imgs: (N, 1, H, W) - 12 channel ECG - H = No. of channels, W = Length of ECG signal (1000 in this case)
-        """
-        ph = self.patch_embed.patch_size[0]
-        pw = self.patch_embed.patch_size[1]
-        # h = w = int(x.shape[1]**.5)
-        # assert h * w == x.shape[1]
-        h = 12
-        w = x.shape[1]/12
-        
-        x = x.reshape(shape=(x.shape[0], h, w, ph, pw, 1))
-        x = torch.einsum('nhwpqc->nchpwq', x)
-        imgs = x.reshape(shape=(x.shape[0], 1, h * ph, w * pw))
-        return imgs
-
     def forward(self, x):
         # embed patches
-        # print("before patch embed = "+str(x.size()))
         x = self.patch_embed(x)
-        # print("after patch embed = "+str(x.size()))
+
         # add pos embed w/o cls token
         # masking: length -> length * mask_ratio
+
         x = x + self.pos_embed[:, 1:, :]
+
         # append cls token
         cls_token = self.cls_token + self.pos_embed[:, :1, :]
         cls_tokens = cls_token.expand(x.shape[0], -1, -1)
@@ -122,12 +82,41 @@ class VisionTransformer1(nn.Module):
         x = self.head_drop(x)
         return self.head(x)
 
-            
-        return outcome
+
+class Discriminator(nn.Module):
+    """ Masked Autoencoder with VisionTransformer backbone
+    """
+    def __init__(self, img_size=(12, 1000), patch_size=(1, 50), in_chans=1,
+                 embed_dim=128, depth=6, num_heads=8,
+                 mlp_ratio=3., norm_layer=nn.LayerNorm, norm_pix_loss=False, num_classes = 10, global_pool=False, drop_rate = 0):
+        super().__init__()
+        self.encoder = vit_1dcnn()
+        self.output_shape = (img_size[0]//patch_size[0], img_size[1]//patch_size[1])
+        self.linear = nn.Linear(self.output_shape[0]*self.output_shape[1]*128, )
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = x.view(x.size(0), -1)
+        return torch.sigmoid(self.linear(x))
+
+
 
 # Model architecture as described in the paper.
 def vit_1dcnn(**kwargs):
-    model = VisionTransformer1(
+    model = VisionTransformer(
         patch_size=(1, 50), embed_dim=128, depth=6, num_heads=8,
         mlp_ratio=3, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
     return model
+
+
+# def generator(**kwargs):
+#     model = VisionTransformer(
+#         patch_size=(1, 50), embed_dim=128, depth=6, num_heads=8,
+#         mlp_ratio=3, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+#     return model
+
+# def discriminator(**kwargs):
+#     model = VisionTransformer(
+#         patch_size=(1, 50), embed_dim=128, depth=6, num_heads=8,
+#         mlp_ratio=3, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+#     return model

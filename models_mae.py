@@ -13,6 +13,7 @@ from functools import partial
 
 import torch
 import torch.nn as nn
+import numpy as np
 
 from timm.models.vision_transformer import Block
 from utils.patch_embed import PatchEmbed
@@ -38,6 +39,7 @@ class MaskedAutoencoderViT(nn.Module):
         # MAE encoder specifics
         # self.linear1 = nn.Linear(1, 32, bias=True)
         # self.linear2 = nn.Linear(1, 32, bias=True)
+        self.output_shape = (img_size[0]//patch_size[0], img_size[1]//patch_size[1])
 
         self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
         num_patches = self.patch_embed.num_patches
@@ -49,6 +51,11 @@ class MaskedAutoencoderViT(nn.Module):
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
             for i in range(depth)])
         self.norm = norm_layer(embed_dim)
+
+        # Discriminator Specifics
+
+        self.discriminate = nn.Linear(embed_dim, 1, bias = True)
+
         # --------------------------------------------------------------------------
         # --------------------------------------------------------------------------
         # MAE decoder specifics
@@ -189,7 +196,50 @@ class MaskedAutoencoderViT(nn.Module):
         x = self.norm(x)
         # print(x.size())
 
-        return x, mask, ids_restore
+        return x, mask, ids_restore, 
+    
+
+    def discriminator(self, currupt_img):
+
+        x = self.patch_embed(currupt_img)
+        # print("after patch embed = "+str(x.size()))
+        # add pos embed w/o cls token
+        x = x + self.pos_embed[:, 1:, :]
+
+        # masking: length -> length * mask_ratio
+        # x, mask, ids_restore = self.random_masking(x, mask_ratio)
+        # append cls token
+
+        cls_token = self.cls_token + self.pos_embed[:, :1, :]
+        cls_tokens = cls_token.expand(x.shape[0], -1, -1)
+        x = torch.cat((cls_tokens, x), dim=1)
+
+        # apply Transformer blocks
+        for blk in self.blocks:
+            x = blk(x)
+        x = self.norm(x)
+
+        # x = x.view(x.size(0), -1)
+
+        x = self.discriminate(x)
+        return torch.sigmoid(x)
+    
+
+    def discriminator_loss(self, x, mask):
+        # Real and fake discriminator outputs
+        output = self.discriminator(x)
+        output = output[:, 1:, 0]
+        # print(real_output.size())
+        # print(mask.size())
+        disc_loss = torch.nn.BCELoss()
+        return disc_loss(output, mask)
+    
+
+    def adv_loss(self, x):
+        pass
+
+    def adaptive_weight(self, loss1, loss2):
+        pass
 
     def forward_decoder(self, x, ids_restore):
         # embed tokens
@@ -249,7 +299,17 @@ class MaskedAutoencoderViT(nn.Module):
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         # print(pred.size())
         loss = self.forward_loss(imgs, pred, mask)
-        return loss, pred, mask
+
+        # loss = loss + self.adaptive_weight()*self.adv_loss()
+
+        img_patched = self.patchify(imgs)
+        currupt_img = torch.zeros(img_patched.size())
+        mask1 = mask.unsqueeze(-1).expand_as(pred)
+        currupt_img = torch.where(mask1 == 1, pred, img_patched)
+        currupt_img = self.unpatchify(currupt_img)
+
+        disc_loss = self.discriminator_loss(currupt_img, mask)
+        return loss, pred, mask, disc_loss
 
 # Model architecture as described in the paper.
 def mae_vit_1dcnn(**kwargs):

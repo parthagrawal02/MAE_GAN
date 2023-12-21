@@ -9,4 +9,4 @@ from models_mae import mae_vit_1dcnn
 x = torch.rand(10, 1, 12, 1000)
 model = mae_vit_1dcnn()
 w = model(x)
-print(w)
+print(model.named_parameters())

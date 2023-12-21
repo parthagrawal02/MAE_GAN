@@ -53,7 +53,6 @@ class MaskedAutoencoderViT(nn.Module):
         self.norm = norm_layer(embed_dim)
 
         # Discriminator Specifics
-
         self.discriminate = nn.Linear(embed_dim, 1, bias = True)
 
         # --------------------------------------------------------------------------
@@ -229,17 +228,34 @@ class MaskedAutoencoderViT(nn.Module):
         # Real and fake discriminator outputs
         output = self.discriminator(x)
         output = output[:, 1:, 0]
-        # print(real_output.size())
-        # print(mask.size())
+        target = 1 - mask
+        target = target.double()
+
         disc_loss = torch.nn.BCELoss()
-        return disc_loss(output, mask)
+        return disc_loss(output, target)
     
 
-    def adv_loss(self, x):
-        pass
+    def adv_loss(self, currupt_img, mask):
+        target = 1 - mask  # This flips the mask values
+        output = self.discriminator(currupt_img)
+        disc_probs = output[:, 1:, 0]
 
-    def adaptive_weight(self, loss1, loss2):
-        pass
+        # Reshape target to match the discriminator output shape
+        target = target.view(disc_probs.shape)
+        target = target.float()
+        # Apply sigmoid function to the discriminator output to get the probabilities
+        # disc_probs = torch.sigmoid(output)
+        # Convert probabilities to class predictions: 1 if prob > 0.5 else 0
+        disc_preds = (disc_probs)
+        print(disc_preds)
+        # Calculate the number of correct predictions for original and reconstructed patches
+        corr_orig = (disc_preds * target).sum()/(target.sum())
+        corr_recons = ((1-disc_preds) * (1 - target)).sum()/((1-target).sum())
+        print(corr_orig)
+        print(corr_recons)
+
+        return torch.log(corr_orig) + torch.log(1-corr_recons) 
+
 
     def forward_decoder(self, x, ids_restore):
         # embed tokens
@@ -298,18 +314,22 @@ class MaskedAutoencoderViT(nn.Module):
         # print(latent.size())
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         # print(pred.size())
-        loss = self.forward_loss(imgs, pred, mask)
+        mae_loss = self.forward_loss(imgs, pred, mask)
 
         # loss = loss + self.adaptive_weight()*self.adv_loss()
-
+        ### 
+        # currupt_img = reconstructed masked patches + unmasked patches
         img_patched = self.patchify(imgs)
         currupt_img = torch.zeros(img_patched.size())
         mask1 = mask.unsqueeze(-1).expand_as(pred)
         currupt_img = torch.where(mask1 == 1, pred, img_patched)
         currupt_img = self.unpatchify(currupt_img)
+        ###
 
         disc_loss = self.discriminator_loss(currupt_img, mask)
-        return loss, pred, mask, disc_loss
+        adv_loss = self.adv_loss(currupt_img, mask)
+
+        return mae_loss, pred, mask, disc_loss, adv_loss, currupt_img
 
 # Model architecture as described in the paper.
 def mae_vit_1dcnn(**kwargs):
@@ -319,7 +339,6 @@ def mae_vit_1dcnn(**kwargs):
         mlp_ratio=3, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
     return model
 
-
 def mae_vit_base_patch16_dec512d8b(**kwargs):
     model = MaskedAutoencoderViT(
         patch_size=16, embed_dim=768, depth=12, num_heads=12,
@@ -327,14 +346,12 @@ def mae_vit_base_patch16_dec512d8b(**kwargs):
         mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
     return model
 
-
 def mae_vit_large_patch16_dec512d8b(**kwargs):
     model = MaskedAutoencoderViT(
         patch_size=16, embed_dim=1024, depth=24, num_heads=16,
         decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
         mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
     return model
-
 
 def mae_vit_huge_patch14_dec512d8b(**kwargs):
     model = MaskedAutoencoderViT(

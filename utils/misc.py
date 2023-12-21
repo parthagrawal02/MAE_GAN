@@ -13,13 +13,14 @@ import builtins
 import datetime
 import os
 import time
+import numpy as np
 from collections import defaultdict, deque
 from pathlib import Path
-
+import matplotlib.pyplot as plt
 import torch
 import torch.distributed as dist
 from torch import inf
-
+torch.autograd.set_detect_anomaly(True)
 
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a
@@ -254,8 +255,8 @@ class NativeScalerWithGradNormCount:
     def __init__(self):
         self._scaler = torch.cuda.amp.GradScaler()
 
-    def __call__(self, loss, optimizer, clip_grad=None, parameters=None, create_graph=False, update_grad=True):
-        self._scaler.scale(loss).backward(create_graph=create_graph)
+    def __call__(self, loss, optimizer, clip_grad=None, parameters=None, create_graph=False, update_grad=True, retain_graph = False):
+        self._scaler.scale(loss).backward(create_graph=create_graph, retain_graph= retain_graph)
         if update_grad:
             if clip_grad is not None:
                 assert parameters is not None
@@ -338,3 +339,19 @@ def all_reduce_mean(x):
         return x_reduce.item()
     else:
         return x
+    
+def plot_reconstruction(currupt_img, samples, size = 1):
+
+    fig = plt.figure(figsize=(12, 48))
+    for idx in np.arange(size):
+        fig, ax = plt.subplots(2, figsize=(10, 6))
+        ax[0].plot(samples[0, 0, idx].numpy())
+        ax[0].set_title('Original ECG')
+
+        # Plot processed ECG
+        ax[1].plot(currupt_img[0, 0, idx].detach().numpy())
+        ax[1].set_title('Processed ECG')
+        plt.tight_layout()
+    return fig
+
+    pass

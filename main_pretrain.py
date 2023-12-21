@@ -41,6 +41,7 @@ from torchsummary import summary
 
 from engine_pretrain import train_one_epoch
 
+torch.autograd.set_detect_anomaly(True)
 
 def get_args_parser():
     parser = argparse.ArgumentParser('MAE pre-training', add_help=False)
@@ -106,7 +107,7 @@ def get_args_parser():
     parser.add_argument('--world_size', default=1, type=int,
                         help='number of distributed processes')
     parser.add_argument('--start', default=0, type=int)
-    parser.add_argument('--end', default=46, type=int)
+    parser.add_argument('--end', default=4, type=int)
 
 
     parser.add_argument('--local_rank', default=-1, type=int)
@@ -135,6 +136,7 @@ def main(args):
     # Physionet Dataset  - change range n from (1, 46) to the number of folders you need
     # Custom Dataloader, arguments - data_path, start file and end file (from the 46 folders)
     dataset = CustomDataset(args.data_path, args.start, args.end)
+    # print(dataset.size())
     sampler_train = torch.utils.data.RandomSampler(dataset)
     
     if args.log_dir is not None:
@@ -174,6 +176,8 @@ def main(args):
     
     # following timm: set wd as 0 for bias and norm layers
     param_groups = optim_factory.param_groups_weight_decay(model_without_ddp, args.weight_decay)
+
+    dis_optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, 0.95))
     optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, 0.95))
     # print(param_groups)
     # print(optimizer)
@@ -215,7 +219,6 @@ def main(args):
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
-
 
 if __name__ == '__main__':
     args = get_args_parser()

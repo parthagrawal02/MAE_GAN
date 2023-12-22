@@ -1,5 +1,7 @@
 # Masked Autoencoder meets GAN for ECG
 
+Pytorch Implementation of [Masked Auto-Encoders Meet Generative Adversarial Networks and Beyond](https://feizc.github.io/resume/ganmae.pdf) for ECG Signals.
+
 To Pretrain run :
 
 ```

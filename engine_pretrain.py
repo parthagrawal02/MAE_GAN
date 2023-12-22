@@ -52,12 +52,12 @@ def train_one_epoch(model: torch.nn.Module,
         else:
             mae_loss, pred, mask, disc_loss, adv_loss, currupt_img = model(samples, mask_ratio=args.mask_ratio)
 
-        print(model.parameters())
-        print(mae_loss)
-        print(disc_loss)
-        print(adv_loss)
+        # print(model.parameters())
+        # print(mae_loss)
+        # print(disc_loss)
+        # print(adv_loss)
         gen_loss = aw_loss(mae_loss, adv_loss, optimizer, model)
-        print(gen_loss)
+        # print(gen_loss)
         gen_loss_value = gen_loss.item()
         if not math.isfinite(gen_loss_value):
             print("Loss is {}, stopping training".format(gen_loss_value))

@@ -192,60 +192,6 @@ def get_args_parser():
     return parser
 
 
-# Gets data from Astart - Aend from the data_path, also converts Y(target) from SNOMED ids.
-
-# def get_data(start, end):
-#     classes = {
-#     426177001: 1,
-#     426783006: 2,
-#     164889003: 3,
-#     427084000: 4,
-#     164890007: 5,
-#     427393009: 6,
-#     426761007: 7,
-#     713422000: 8,
-#     233896004: 9,
-#     233897008: 0
-#     }
-#     dataset = []
-#     y = []
-#     for n in range(start, end):
-#         for j in range(0, 10):
-#             for filepath in glob.iglob(args.data_path + '/physionet/WFDBRecords/' + f"{n:02}" +  '/' + f"{n:02}" + str(j) +  '/*.hea'):
-#                 try:
-#                     ecg_record = wfdb.rdsamp(filepath[:-4])
-#                 except Exception:
-#                     continue
-#                 # annots = wfdb.Annotation(filepath[:-4], 'hea')
-#                 # print(ecg_record[0].transpose(1,0).shape)
-#                 numbers = re.findall(r'\d+', ecg_record[1]['comments'][2])
-#                 output_array = list(map(int, numbers))
-#                 for j in output_array:
-#                     if int(j) in classes:
-#                         output_array = j
-#                 if isinstance(output_array, list):
-#                     continue
-#                 y.append(output_array)
-#                 lx = []
-#                 for chan in range(ecg_record[0].shape[1]):
-#                     resampled_x, _ = wfdb.processing.resample_sig(ecg_record[0][:, chan], 500, 100)
-#                     lx.append(resampled_x)
-#                 dataset.append(ecg_record[0])
-#     dataset = np.array(dataset)
-#     print(dataset.shape)
-#     dataset = dataset.astype(np.double, copy=False)
-#     print(dataset.shape)
-#     X = torch.from_numpy(dataset[:, :, :])
-#     print(X.shape)
-#     for i in range(len(y)):
-#         y[i] = classes[y[i]]
-#     Y = torch.from_numpy(np.array(y))
-#     X = X[:, None, :, :]
-#     dataset_train = torch.utils.data.TensorDataset(X, Y)
-
-#     return dataset_train
-
-
 def main(args):
     misc.init_distributed_mode(args)
 
@@ -310,8 +256,7 @@ def main(args):
         dataset_val = torch.utils.data.TensorDataset(torch.tensor(X_test[:, None, :, :]).double(), torch.tensor(y_test).double())
 
     else:
-        # dataset_train = build_dataset(is_train=True, args=args)
-        # dataset_val = build_dataset(is_train=False, args=args)
+
         full_dataset = CustomDataset(args.data_path, args.train_start, args.train_end)    # Training Data -
         train_size = int(args.data_split * len(full_dataset))
         val_size = len(full_dataset) - train_size
@@ -385,7 +330,6 @@ def main(args):
             if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
                 print(f"Removing key {k} from pretrained checkpoint")
                 del checkpoint_model[k]
-        # print(checkpoint_model)
         # interpolate position embedding
         interpolate_pos_embed(model, checkpoint_model)
 

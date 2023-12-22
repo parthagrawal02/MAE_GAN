@@ -247,12 +247,9 @@ class MaskedAutoencoderViT(nn.Module):
         # disc_probs = torch.sigmoid(output)
         # Convert probabilities to class predictions: 1 if prob > 0.5 else 0
         disc_preds = (disc_probs)
-        print(disc_preds)
         # Calculate the number of correct predictions for original and reconstructed patches
         corr_orig = (disc_preds * target).sum()/(target.sum())
         corr_recons = ((1-disc_preds) * (1 - target)).sum()/((1-target).sum())
-        print(corr_orig)
-        print(corr_recons)
 
         return torch.log(corr_orig) + torch.log(1-corr_recons) 
 

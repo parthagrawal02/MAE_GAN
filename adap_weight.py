@@ -14,7 +14,6 @@ def aw_loss(L_mae, L_adv, Gen_opt, Gen_net):
     # calculating the norm of the real gradient
     rdotr = torch.dot(grad_real_list, grad_real_list).item() 
     mae_norm = np.sqrt(rdotr)
-
     # resetting gradient back to zero
     Gen_opt.zero_grad()
 

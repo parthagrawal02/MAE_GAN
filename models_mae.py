@@ -238,20 +238,18 @@ class MaskedAutoencoderViT(nn.Module):
     def adv_loss(self, currupt_img, mask):
         target = 1 - mask  # This flips the mask values
         output = self.discriminator(currupt_img)
-        disc_probs = output[:, 1:, 0]
+        disc_preds = output[:, 1:, 0]
 
         # Reshape target to match the discriminator output shape
-        target = target.view(disc_probs.shape)
+        target = target.view(disc_preds.shape)
         target = target.float()
-        # Apply sigmoid function to the discriminator output to get the probabilities
-        # disc_probs = torch.sigmoid(output)
-        # Convert probabilities to class predictions: 1 if prob > 0.5 else 0
-        disc_preds = (disc_probs)
-        # Calculate the number of correct predictions for original and reconstructed patches
-        corr_orig = (disc_preds * target).sum()/(target.sum())
-        corr_recons = ((1-disc_preds) * (1 - target)).sum()/((1-target).sum())
 
-        return torch.log(corr_orig) + torch.log(1-corr_recons) 
+        # Calculate the number of correct predictions for original and reconstructed patches
+        corr_orig = (torch.log(disc_preds + 1e-8) * target).sum()/(target.sum())
+        corr_recons = (torch.log((1-disc_preds + 1e-8))*(1 - target)).sum()/((1-target).sum())
+        # print(corr_orig)
+        # print(corr_orig + corr_recons)
+        return (corr_orig) + (corr_recons) 
 
 
     def forward_decoder(self, x, ids_restore):
@@ -298,11 +296,12 @@ class MaskedAutoencoderViT(nn.Module):
         if torch.isnan(pred).any():
             print("NaN values found in pred tensors")
 
-        loss = abs(pred - target)
+        loss = (pred - target)**2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
         # print(loss)
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
         # loss = (loss).sum() / len(loss)*240
+        # print(loss)
         return loss
 
     def forward(self, imgs, mask_ratio=0.75):

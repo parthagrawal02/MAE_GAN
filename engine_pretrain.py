@@ -53,9 +53,6 @@ def train_one_epoch(model: torch.nn.Module,
             mae_loss, pred, mask, disc_loss, adv_loss, currupt_img = model(samples, mask_ratio=args.mask_ratio)
 
         # print(model.parameters())
-        # print(mae_loss)
-        # print(disc_loss)
-        # print(adv_loss)
         gen_loss = aw_loss(mae_loss, adv_loss, optimizer, model)
         # print(gen_loss)
         gen_loss_value = gen_loss.item()
@@ -67,6 +64,7 @@ def train_one_epoch(model: torch.nn.Module,
 
         loss_scaler(gen_loss, optimizer, parameters=model.parameters(),
                     update_grad=(data_iter_step + 1) % accum_iter == 0, retain_graph = True)
+        
         if (data_iter_step + 1) % accum_iter == 0:
             optimizer.zero_grad()
         

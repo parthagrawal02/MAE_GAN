@@ -349,7 +349,7 @@ def plot_reconstruction(currupt_img, samples, size = 1):
         ax[0].set_title('Original ECG')
 
         # Plot processed ECG
-        ax[1].plot(currupt_img[0, 0, idx].detach().numpy())
+        ax[1].plot(currupt_img[0, 0, idx].cpu().detach().numpy())
         ax[1].set_title('Processed ECG')
         plt.tight_layout()
     return fig

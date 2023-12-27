@@ -47,8 +47,8 @@ def train_one_epoch(model: torch.nn.Module,
             lr_sched.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
         
         if args.cuda is not None:
-            with torch.cuda.amp.autocast():
-                mae_loss, pred, mask, disc_loss, adv_loss, currupt_img = model(samples.to(device), mask_ratio=args.mask_ratio)
+            # with torch.cuda.amp.autocast():
+            mae_loss, pred, mask, disc_loss, adv_loss, currupt_img = model(samples.to(device), mask_ratio=args.mask_ratio)
         else:
             mae_loss, pred, mask, disc_loss, adv_loss, currupt_img = model(samples, mask_ratio=args.mask_ratio)
 

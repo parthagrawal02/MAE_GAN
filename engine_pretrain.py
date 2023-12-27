@@ -71,12 +71,15 @@ def train_one_epoch(model: torch.nn.Module,
         mae_loss, pred, mask, disc_loss, adv_loss, currupt_img = model(samples.to(device), mask_ratio=args.mask_ratio)
 
         disc_loss_value = disc_loss.item()
+        mae_loss_value = mae_loss.item()
 
         if not math.isfinite(disc_loss_value):
             print("Loss is {}, stopping training".format(disc_loss_value))
             sys.exit(1)
 
         disc_loss = disc_loss/accum_iter
+        mae_loss = mae_loss/accum_iter
+
         loss_scaler(disc_loss, optimizer, parameters=model.parameters(),
                     update_grad=(data_iter_step + 1) % accum_iter == 0, retain_graph = True)
         if (data_iter_step + 1) % accum_iter == 0:
@@ -87,12 +90,14 @@ def train_one_epoch(model: torch.nn.Module,
 
         metric_logger.update(disc_loss=disc_loss_value)
         metric_logger.update(gen_loss=gen_loss_value)
+        metric_logger.update(mae_loss=mae_loss_value)
 
         lr = optimizer.param_groups[0]["lr"]
         metric_logger.update(lr=lr)
 
         disc_loss_value_reduce = misc.all_reduce_mean(disc_loss_value)
         gen_loss_value_reduce = misc.all_reduce_mean(gen_loss_value)
+        mae_loss_value_reduce = misc.all_reduce_mean(mae_loss_value)
 
 
         if log_writer is not None and (data_iter_step + 1) % accum_iter == 0:
@@ -102,6 +107,7 @@ def train_one_epoch(model: torch.nn.Module,
             epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
             log_writer.add_scalar('disc_train_loss', disc_loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('gen_train_loss', gen_loss_value_reduce, epoch_1000x)
+            log_writer.add_scalar('mae_loss', mae_loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('lr', lr, epoch_1000x)
             log_writer.add_figure('Reconstructed vs. actuals',
                             plot_reconstruction(currupt_img, samples),

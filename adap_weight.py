@@ -31,9 +31,9 @@ def aw_loss(L_mae, L_adv, Gen_opt, Gen_net):
 
     # dot product between real and fake gradients
     adaptive_weight = mae_norm/adv_norm
-    print(adaptive_weight)
-    print(L_mae)
-    print(L_adv)
+    # print(adaptive_weight)
+    # print(L_mae)
+    # print(L_adv)
     # calculating aw_loss
     aw_loss = L_mae + adaptive_weight * L_adv
 

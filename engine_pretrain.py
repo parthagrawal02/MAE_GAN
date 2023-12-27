@@ -68,7 +68,7 @@ def train_one_epoch(model: torch.nn.Module,
         if (data_iter_step + 1) % accum_iter == 0:
             optimizer.zero_grad()
         
-        mae_loss, pred, mask, disc_loss, adv_loss, currupt_img = model(samples, mask_ratio=args.mask_ratio)
+        mae_loss, pred, mask, disc_loss, adv_loss, currupt_img = model(samples.to(device), mask_ratio=args.mask_ratio)
 
         disc_loss_value = disc_loss.item()
 
